@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useId, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { VISIBILITY_STATUSES, MEDIA_TYPES, type LayoutStyle } from '@/db/schema';
 import BaseModal from '@/components/BaseModal';
 import MediaLibraryHeader, { FilterOption, SortOption } from '@/components/SearchSortFilter';
@@ -84,7 +83,6 @@ export default function CreateGalleryModal({
   onClose,
   initialData = null,
 }: CreateGalleryModalProps) {
-  const router = useRouter();
   const isEditMode = !!initialData;
   
   const titleId = useId();
@@ -226,7 +224,6 @@ export default function CreateGalleryModal({
       }
 
       onClose();
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

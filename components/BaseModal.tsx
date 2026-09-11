@@ -29,6 +29,9 @@ const widthClasses = {
   '7xl': 'sm:max-w-7xl',
 };
 
+let openModalCount = 0;
+let previousBodyOverflow = '';
+
 export default function BaseModal({ 
   isOpen, 
   onClose, 
@@ -43,16 +46,15 @@ export default function BaseModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  const isModalVisible = isOpen || isRendered;
 
   // 1. Self-contained animation mounting/unmounting
   useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-    } else {
-      // Delay unmounting to allow Framer Motion exit animation to complete
-      const timer = setTimeout(() => setIsRendered(false), 300);
-      return () => clearTimeout(timer);
-    }
+    if (isOpen) return;
+
+    // Delay unmounting to allow Framer Motion exit animation to complete
+    const timer = setTimeout(() => setIsRendered(false), 300);
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   // 2. Accessibility: Focus Trap & Escape Key Handling
@@ -100,9 +102,13 @@ export default function BaseModal({
 
   // 3. Accessibility & UX: Focus Management & Body Scroll Lock
   useEffect(() => {
-    if (isOpen) {
+    if (isModalVisible) {
       previousActiveElement.current = document.activeElement as HTMLElement;
-      document.body.style.overflow = 'hidden';
+      if (openModalCount === 0) {
+        previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+      }
+      openModalCount += 1;
       
       // Defer focus to ensure DOM is ready and entrance transition has started
       const timer = setTimeout(() => {
@@ -111,19 +117,22 @@ export default function BaseModal({
       
       return () => {
         clearTimeout(timer);
-        document.body.style.overflow = '';
+        openModalCount = Math.max(0, openModalCount - 1);
+        if (openModalCount === 0) {
+          document.body.style.overflow = previousBodyOverflow;
+        }
         previousActiveElement.current?.focus();
       };
     }
-  }, [isOpen]);
+  }, [isModalVisible]);
 
-  if (!isRendered) return null;
+  if (!isModalVisible) return null;
 
   return (
     <AnimatePresence>
-      {/* Added key prop to resolve duplicate key warning */}
-      <motion.div 
-        key="base-modal-container"
+      {isModalVisible && (
+        <motion.div 
+          key="base-modal-container"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -190,7 +199,8 @@ export default function BaseModal({
             </div>
           )}
         </motion.div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Inline styles for a premium, dependency-free custom scrollbar */}
       <style>{`

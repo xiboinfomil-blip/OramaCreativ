@@ -406,13 +406,12 @@ export default function ManageGalleryClient({
         body: JSON.stringify({ galleryId: gallery.id, mediaId }),
       });
       if (!res.ok) throw new Error('Failed to add media');
-      router.refresh();
       return true;
     } catch (error) {
       console.error('Failed to add media', error);
       return false;
     }
-  }, [gallery.id, router]);
+  }, [gallery.id]);
 
   const handleCloseModal = useCallback(() => {
     setIsAddModalOpen(false);

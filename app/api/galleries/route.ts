@@ -5,6 +5,34 @@ import { galleryHelpers } from '@/lib/db-helpers';
 import { slugify } from '@/lib/utils';
 import bcrypt from 'bcryptjs'; // ✅ Import bcryptjs
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, Number(searchParams.get('page')) || 1);
+    const limit = Math.min(24, Math.max(1, Number(searchParams.get('limit')) || 12));
+    const sortParam = searchParams.get('sort');
+    const sortBy = sortParam === 'oldest' || sortParam === 'title' ? sortParam : 'newest';
+    const filter = searchParams.get('filter') || 'all';
+    const result = await galleryHelpers.findPublic({
+      limit,
+      offset: (page - 1) * limit,
+      search: searchParams.get('search') || undefined,
+      sortBy,
+      filter,
+    });
+
+    return NextResponse.json({
+      items: result.items,
+      total: result.total,
+      hasMore: result.hasMore,
+      page,
+    });
+  } catch (error) {
+    console.error('Error fetching galleries:', error);
+    return NextResponse.json({ message: 'Failed to fetch galleries' }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

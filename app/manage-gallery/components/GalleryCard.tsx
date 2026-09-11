@@ -28,6 +28,8 @@ export const GalleryCard = memo(function GalleryCard({
 
   // Handle outside clicks AND Escape key for robust accessibility
   useEffect(() => {
+    if (!isMenuOpen) return;
+
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);

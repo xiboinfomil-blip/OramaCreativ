@@ -2,9 +2,40 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { mediaHelpers } from '@/lib/db-helpers';
-import { db } from '@/lib/db';
-import { eq } from 'drizzle-orm';
-import { media } from '@/db/schema';
+
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, Number(searchParams.get('page')) || 1);
+    const limit = Math.min(100, Math.max(10, Number(searchParams.get('limit')) || 20));
+    const type = searchParams.get('type');
+    const filter = type === 'image' || type === 'video' || type === 'gif' ? type : undefined;
+    const sortParam = searchParams.get('sortBy');
+    const sortBy = sortParam === 'oldest' || sortParam === 'name' ? sortParam : 'newest';
+    const result = await mediaHelpers.findAll({
+      limit,
+      offset: (page - 1) * limit,
+      search: searchParams.get('search') || undefined,
+      filter,
+      sortBy,
+    });
+
+    return NextResponse.json({
+      items: result.items,
+      total: result.total,
+      hasMore: result.hasMore,
+      page,
+    });
+  } catch (error) {
+    console.error('Media fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch media' }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -84,15 +115,10 @@ export async function DELETE(req: Request) {
   }
 
   try {
-    const mediaItem = await db.query.media.findFirst({
-      where: eq(media.id, id)
-    });
-    
-    if (!mediaItem) {
+    const deletedMedia = await mediaHelpers.delete(id);
+    if (deletedMedia.length === 0) {
       return NextResponse.json({ error: 'Media not found' }, { status: 404 });
     }
-
-    await mediaHelpers.delete(id);
     
     return NextResponse.json({ success: true });
   } catch (error) {

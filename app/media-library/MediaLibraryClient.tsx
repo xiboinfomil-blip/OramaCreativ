@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Swal from 'sweetalert2';
 import MediaCard, { MediaSchema } from '@/app/media-library/components/MediaCard';
 import UploadModal from '@/app/media-library/components/UploadModal'; 
 import MediaLibraryHeader, { FilterOption, SortOption } from '@/components/SearchSortFilter'; 
-import Pagination from '@/components/Pagination'; 
 import FloatingActionButton from '@/components/FloatingActionButton'; 
 import GalleryLightbox, { MediaItem } from '@/components/GalleryLightbox';
 import CardGrid from '@/components/displayGrid';
 import { MEDIA_TYPES } from '@/db/schema';
 import { HiPhoto } from 'react-icons/hi2';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 
 interface MediaLibraryClientProps {
   initialMedia: MediaSchema[];
@@ -59,9 +59,20 @@ export default function MediaLibraryClient({
   const [searchInput, setSearchInput] = useState(filters.search);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const [media, setMedia] = useState(initialMedia);
+  const [hasMore, setHasMore] = useState(pagination.hasNext);
+  const nextPageRef = useRef(pagination.currentPage + 1);
+
+  useEffect(() => {
+    // URL changes from filters replace the list and restart loading at page one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMedia(initialMedia);
+    setHasMore(pagination.hasNext);
+    nextPageRef.current = pagination.currentPage + 1;
+  }, [initialMedia, pagination.hasNext, pagination.currentPage]);
 
   // ✅ Explicitly type the useMemo return and cast the object to satisfy the Slide union type
-  const slides = useMemo((): MediaItem[] => initialMedia.map(item => {
+  const slides = useMemo((): MediaItem[] => media.map(item => {
     const isVideo = item.type === 'video';
     
     return {
@@ -76,7 +87,7 @@ export default function MediaLibraryClient({
       title: item.originalFilename || undefined,
       description: item.caption || undefined,
     } as MediaItem;
-  }), [initialMedia]);
+  }), [media]);
 
   const updateSearchParams = useCallback((params: Record<string, string | undefined>) => {
     const newParams = new URLSearchParams(searchParams.toString());
@@ -105,10 +116,30 @@ export default function MediaLibraryClient({
     updateSearchParams({ sortBy });
   }, [updateSearchParams]);
 
-  const handlePageChange = useCallback((newPage: number) => {
-    updateSearchParams({ page: newPage.toString() });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [updateSearchParams]);
+  const loadMore = useCallback(async () => {
+    if (!hasMore) return;
+
+    const page = nextPageRef.current;
+    const params = new URLSearchParams({
+      page: page.toString(),
+      search: filters.search,
+      type: filters.type || 'all',
+      sortBy: filters.sortBy || 'newest',
+      limit: pagination.limit.toString(),
+    });
+    const response = await fetch(`/api/media?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to load more media.');
+
+    const data = await response.json() as { items: MediaSchema[]; hasMore: boolean };
+    setMedia((current) => {
+      const existingIds = new Set(current.map((item) => item.id));
+      return [...current, ...data.items.filter((item) => !existingIds.has(item.id))];
+    });
+    setHasMore(data.hasMore);
+    nextPageRef.current = page + 1;
+  }, [filters, hasMore, pagination.limit]);
+
+  const { sentinelRef, isLoading, error } = useInfiniteScroll({ hasMore, onLoadMore: loadMore });
 
   const handleDelete = useCallback(async (id: string) => {
     const result = await Swal.fire({
@@ -221,11 +252,11 @@ export default function MediaLibraryClient({
           </div>
 
           <CardGrid
-            items={initialMedia}
+            items={media}
             ariaLabel="Media library assets"
             emptyState={mediaEmptyState}
             renderItem={(item, index) => (
-              <MediaCard 
+                <MediaCard 
                 media={item} 
                 onDelete={handleDelete}
                 onOpenLightbox={() => handleOpenLightbox(index)}
@@ -236,17 +267,11 @@ export default function MediaLibraryClient({
             )}
           />
 
-          {initialMedia.length > 0 && (
-            <div className="mt-12 flex justify-center">
-              <Pagination 
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                hasNext={pagination.hasNext}
-                hasPrevious={pagination.hasPrevious}
-                onPageChange={handlePageChange}
-              />
-            </div>
-          )}
+          <div ref={sentinelRef} className="flex min-h-20 items-center justify-center py-8" aria-live="polite">
+            {isLoading && <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">Loading more media...</span>}
+            {!isLoading && error && <span className="text-xs font-medium text-rose-600">{error}</span>}
+            {!isLoading && !hasMore && media.length > 0 && <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">All media loaded</span>}
+          </div>
         </main>
 
         <FloatingActionButton onClick={() => setIsUploadOpen(true)} label="Upload Media" />

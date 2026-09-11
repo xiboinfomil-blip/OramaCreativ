@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { MEDIA_TYPES } from '@/db/schema';
 import CustomImage from './custom-image'; // Adjust import path as needed
 import CustomVideo from './custom-video'; // Adjust import path as needed
@@ -37,11 +37,6 @@ const MediaViewport = ({
 
   const currentSrc = hasError ? thumbnailUrl : fullResUrl;
 
-  // Reset error state if the source URL changes (e.g., navigating between items)
-  useEffect(() => {
-    setHasError(false);
-  }, [currentSrc]);
-
   return (
     <figure 
       role="figure"
@@ -51,6 +46,7 @@ const MediaViewport = ({
     >
       {mediaType === 'video' ? (
         <CustomVideo
+          key={`${fullResUrl}:${thumbnailUrl}`}
           src={currentSrc}
           poster={thumbnailUrl || undefined}
           hoverPlay={true}
@@ -58,6 +54,7 @@ const MediaViewport = ({
         />
       ) : (
         <CustomImage
+          key={`${fullResUrl}:${thumbnailUrl}`}
           src={currentSrc}
           fallbackSrc={thumbnailUrl}
           alt={caption || originalFilename || 'Media asset'}

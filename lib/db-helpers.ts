@@ -17,6 +17,7 @@ import {
 // TYPES
 // ==========================================
 type MediaRow = typeof media.$inferSelect;
+type GalleryListMedia = Pick<MediaRow, 'id' | 'thumbnailUrl' | 'fullResUrl' | 'type' | 'originalFilename' | 'caption'>;
 type GalleryRow = typeof galleries.$inferSelect;
 type GalleryMediaRow = typeof galleryMedia.$inferSelect;
 
@@ -241,7 +242,16 @@ export const galleryHelpers = {
       offset,
       orderBy: orderByClause,
       with: {
-        coverMedia: true
+        coverMedia: {
+          columns: {
+            id: true,
+            thumbnailUrl: true,
+            fullResUrl: true,
+            type: true,
+            originalFilename: true,
+            caption: true
+          }
+        }
       }
     });
 
@@ -257,14 +267,23 @@ export const galleryHelpers = {
       const allGalleryMedia = await db.query.galleryMedia.findMany({
         where: inArray(galleryMedia.galleryId, galleryIds),
         with: {
-          media: true
+          media: {
+            columns: {
+              id: true,
+              thumbnailUrl: true,
+              fullResUrl: true,
+              type: true,
+              originalFilename: true,
+              caption: true
+            }
+          }
         }
       });
       
-      const mediaByGallery = new Map<string, MediaRow | null>();
-      const galleryMediaMap = new Map<string, MediaRow[]>();
+      const mediaByGallery = new Map<string, GalleryListMedia | null>();
+      const galleryMediaMap = new Map<string, GalleryListMedia[]>();
       
-      allGalleryMedia.forEach((gm: { galleryId: string; media: MediaRow }) => {
+      allGalleryMedia.forEach((gm) => {
         if (!galleryMediaMap.has(gm.galleryId)) {
           galleryMediaMap.set(gm.galleryId, []);
         }
@@ -368,7 +387,16 @@ export const galleryHelpers = {
       offset,
       orderBy: orderByClause,
       with: {
-        coverMedia: true
+        coverMedia: {
+          columns: {
+            id: true,
+            thumbnailUrl: true,
+            fullResUrl: true,
+            type: true,
+            originalFilename: true,
+            caption: true
+          }
+        }
       }
     });
 
@@ -384,14 +412,23 @@ export const galleryHelpers = {
       const allGalleryMedia = await db.query.galleryMedia.findMany({
         where: inArray(galleryMedia.galleryId, galleryIds),
         with: {
-          media: true
+          media: {
+            columns: {
+              id: true,
+              thumbnailUrl: true,
+              fullResUrl: true,
+              type: true,
+              originalFilename: true,
+              caption: true
+            }
+          }
         }
       });
       
-      const mediaByGallery = new Map<string, MediaRow | null>();
-      const galleryMediaMap = new Map<string, MediaRow[]>();
+      const mediaByGallery = new Map<string, GalleryListMedia | null>();
+      const galleryMediaMap = new Map<string, GalleryListMedia[]>();
       
-      allGalleryMedia.forEach((gm: { galleryId: string; media: MediaRow }) => {
+      allGalleryMedia.forEach((gm) => {
         if (!galleryMediaMap.has(gm.galleryId)) {
           galleryMediaMap.set(gm.galleryId, []);
         }
@@ -505,11 +542,29 @@ export const galleryMediaHelpers = {
       where: eq(galleryMedia.galleryId, galleryId),
       orderBy: [asc(galleryMedia.position)],
       with: {
-        media: true
+        media: {
+          columns: {
+            id: true,
+            thumbnailUrl: true,
+            fullResUrl: true,
+            type: true,
+            originalFilename: true,
+            caption: true,
+            uploadedAt: true
+          }
+        }
       }
     });
 
     return items;
+  },
+
+  getGalleryMediaIds: async (galleryId: string) => {
+    if (!isValidUUID(galleryId)) return [];
+    return await db.query.galleryMedia.findMany({
+      where: eq(galleryMedia.galleryId, galleryId),
+      columns: { mediaId: true }
+    });
   },
 
   reorderGallery: async (galleryId: string, orderedMediaIds: string[]) => {

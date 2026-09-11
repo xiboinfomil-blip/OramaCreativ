@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { galleryMediaHelpers, galleryHelpers } from '@/lib/db-helpers';
+import { galleryMediaHelpers } from '@/lib/db-helpers';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -11,9 +11,6 @@ export async function POST(req: Request) {
   }
 
   const { galleryId, mediaId } = await req.json();
-
-  // Optional: Verify ownership
-  const gallery = await galleryHelpers.findById(galleryId);
 
   try {
     await galleryMediaHelpers.addMediaToGalleryEnd(galleryId, mediaId);

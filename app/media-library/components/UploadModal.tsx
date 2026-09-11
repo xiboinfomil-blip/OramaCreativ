@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, memo, useId } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import exifr from 'exifr';
 import Swal from 'sweetalert2';
@@ -19,8 +18,7 @@ import {
   HiMapPin, 
   HiArrowPath,
   HiChevronLeft,
-  HiChevronRight,
-  HiTrash
+  HiChevronRight
 } from 'react-icons/hi2';
 
 interface ExifData {
@@ -130,7 +128,6 @@ const ThumbnailItem = memo(({
 ThumbnailItem.displayName = 'ThumbnailItem';
 
 export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const captionId = useId();
@@ -149,6 +146,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
+  const mediaItemsRef = useRef(mediaItems);
 
   const resetModalState = useCallback(() => {
     setMediaItems(prev => {
@@ -166,12 +164,14 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   }, []);
 
   useEffect(() => {
-    return () => {
-      mediaItems.forEach(item => {
-        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      });
-    };
+    mediaItemsRef.current = mediaItems;
   }, [mediaItems]);
+
+  useEffect(() => () => {
+    mediaItemsRef.current.forEach(item => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+  }, []);
 
   const fetchStorageUsage = useCallback(async () => {
     setIsCheckingStorage(true);
@@ -455,7 +455,6 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
         color: '#18181b'
       });
 
-      router.refresh();
       onClose();
 
     } catch (err: unknown) {
@@ -473,7 +472,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [mediaItems, storageUsage, getCloudinarySignature, router, onClose, formatBytes]);
+  }, [mediaItems, storageUsage, getCloudinarySignature, onClose, formatBytes]);
 
   const currentItem = mediaItems[currentIndex];
 

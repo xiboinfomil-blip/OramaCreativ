@@ -101,8 +101,8 @@ async function ManageGalleryContent({ params, searchParams }: PageProps) {
 
   // 3. Fetch Available Media for the "Add" Modal
   // Lightweight fetch for all media IDs in this gallery to ensure accurate exclusion
-  const allGalleryMediaIds = await galleryMediaHelpers.getGalleryMediaWithDetails(id);
-  const existingMediaIds = allGalleryMediaIds.map(gm => gm.media.id);
+  const allGalleryMediaIds = await galleryMediaHelpers.getGalleryMediaIds(id);
+  const existingMediaIds = allGalleryMediaIds.map(gm => gm.mediaId);
 
   const modalPage = Number(filters.modalPage) || 1;
   const modalLimit = 12;

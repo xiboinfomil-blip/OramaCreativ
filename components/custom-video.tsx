@@ -16,8 +16,8 @@ const CustomVideo = forwardRef<HTMLVideoElement, CustomVideoProps>(
     onError,
     ...props 
   }, ref) => {
-    const [isLoaded, setIsLoaded] = useState(false);
-    
+    const [isLoaded, setIsLoaded] = useState(Boolean(poster));
+
 
     const handleReady = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
       setIsLoaded(true);
@@ -47,32 +47,13 @@ const CustomVideo = forwardRef<HTMLVideoElement, CustomVideoProps>(
 
     return (
       <div className="relative h-full w-full overflow-hidden bg-zinc-100">
-        {/* 
-          1. INSTANT THUMBNAIL LAYER (MP4)
-          Rendered as a <video> with preload="metadata". 
-          This instantly shows the first frame of the MP4 without downloading the whole file.
-          NO hover events here — this layer is purely visual.
-        */}
-        {poster && (
-          <video
-            src={poster}
-            muted
-            playsInline
-            preload="metadata" 
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-[1.03]"
-          />
-        )}
-        
-        {/* 
-          2. MAIN VIDEO LAYER
-          Fades in seamlessly when ready. Handles the hover playback.
-        */}
         <video
           ref={ref}
+          poster={poster}
           {...props} 
           loop
           playsInline
-          preload="metadata"
+          preload="none"
           disablePictureInPicture 
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}

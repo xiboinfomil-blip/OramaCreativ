@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { GallerySummary } from '@/types/types'; 
 import MediaLibraryHeader from '@/components/SearchSortFilter';
-import Pagination from '@/components/Pagination'; 
 import CardGrid from '@/components/displayGrid'; 
 import MediaViewport from '@/components/media-viewport';
 import EmptyState from '@/components/gallery/EmptyState';
 import { Calendar, ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 
 interface GalleryClientProps {
   initialGalleries: GallerySummary[];
@@ -33,7 +33,6 @@ export default function GalleryClient({
   currentPage,
   totalPages,
   hasNext,
-  hasPrevious,
   initialParams 
 }: GalleryClientProps) {
   const router = useRouter();
@@ -45,6 +44,9 @@ export default function GalleryClient({
   const [searchQuery, setSearchQuery] = useState(initialParams.search);
   const [sortBy, setSortBy] = useState<SortOption>(initialParams.sort as SortOption);
   const [filterType, setFilterType] = useState<FilterOption>(initialParams.filter as FilterOption);
+  const [galleries, setGalleries] = useState(initialGalleries);
+  const [hasMore, setHasMore] = useState(hasNext);
+  const nextPageRef = useRef(currentPage + 1);
 
   const updateUrl = useCallback((params: Record<string, string>) => {
     startTransition(() => {
@@ -61,6 +63,14 @@ export default function GalleryClient({
       router.push(`${pathname}${query}`);
     });
   }, [searchParams, pathname, router, startTransition]);
+
+  useEffect(() => {
+    // URL changes from filters replace the list and restart loading at page one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGalleries(initialGalleries);
+    setHasMore(hasNext);
+    nextPageRef.current = currentPage + 1;
+  }, [initialGalleries, hasNext, currentPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -81,17 +91,36 @@ export default function GalleryClient({
     updateUrl({ filter: newFilter, page: '1' });
   };
 
-  const handlePageChange = (page: number) => {
-    updateUrl({ page: page.toString() });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const loadMore = useCallback(async () => {
+    if (!hasMore) return;
+
+    const page = nextPageRef.current;
+    const params = new URLSearchParams({
+      page: page.toString(),
+      search: initialParams.search,
+      sort: initialParams.sort,
+      filter: initialParams.filter,
+    });
+    const response = await fetch(`/api/galleries?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to load more galleries.');
+
+    const data = await response.json() as { items: GallerySummary[]; hasMore: boolean };
+    setGalleries((current) => {
+      const existingIds = new Set(current.map((gallery) => gallery.id));
+      return [...current, ...data.items.filter((gallery) => !existingIds.has(gallery.id))];
+    });
+    setHasMore(data.hasMore);
+    nextPageRef.current = page + 1;
+  }, [hasMore, initialParams]);
+
+  const { sentinelRef, isLoading, error } = useInfiniteScroll({ hasMore, onLoadMore: loadMore });
 
   // Simplified click handler - just navigate
   const handleGalleryClick = (gallery: GallerySummary) => {
     router.push(`/gallery/${gallery.id}`);
   };
 
-  const displayedGalleries = initialGalleries;
+  const displayedGalleries = galleries;
 
   return (
     <div className="min-h-screen bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white font-sans antialiased">
@@ -224,18 +253,11 @@ export default function GalleryClient({
         />
       </main>
 
-      {/* Pagination Footer - Full Width */}
-      {(hasNext || hasPrevious) && (
-        <div className="w-full border-t border-zinc-100 py-12 bg-white">
-          <Pagination 
-            currentPage={currentPage}
-            totalPages={totalPages}
-            hasNext={hasNext}
-            hasPrevious={hasPrevious}
-            onPageChange={handlePageChange}
-          />
-        </div>
-      )}
+      <div ref={sentinelRef} className="flex min-h-20 items-center justify-center py-8" aria-live="polite">
+        {isLoading && <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">Loading more galleries...</span>}
+        {!isLoading && error && <span className="text-xs font-medium text-rose-600">{error}</span>}
+        {!isLoading && !hasMore && galleries.length > 0 && <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">All galleries loaded</span>}
+      </div>
     </div>
   );
 }
