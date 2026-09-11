@@ -64,6 +64,7 @@ export default async function MediaLibraryPage({ searchParams }: MediaLibraryPag
       ? [Number(m.coordinates[0]), Number(m.coordinates[1])] as [number, number] 
       : null,
     uploadedAt: m.uploadedAt,
+    galleryCount: m.galleryCount,
   }));
 
   const totalPages = Math.ceil(result.total / limit);

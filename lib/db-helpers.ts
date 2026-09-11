@@ -17,6 +17,7 @@ import {
 // TYPES
 // ==========================================
 type MediaRow = typeof media.$inferSelect;
+type MediaWithUsage = MediaRow & { galleryCount: number };
 type GalleryListMedia = Pick<MediaRow, 'id' | 'thumbnailUrl' | 'fullResUrl' | 'type' | 'originalFilename' | 'caption'>;
 type GalleryRow = typeof galleries.$inferSelect;
 type GalleryMediaRow = typeof galleryMedia.$inferSelect;
@@ -59,7 +60,7 @@ export const mediaHelpers = {
     filter?: string;
     sortBy?: 'newest' | 'oldest' | 'name';
     excludeIds?: string[]; 
-  }): Promise<PaginatedResponse<MediaRow>> => {
+  }): Promise<PaginatedResponse<MediaWithUsage>> => {
     const { limit = 50, offset = 0, search, filter, sortBy = 'newest', excludeIds } = options || {};
     
     const conditions: SQL[] = [];
@@ -117,8 +118,30 @@ export const mediaHelpers = {
       
     const total = Number(countResult[0]?.count) || 0;
 
+    const mediaIds = items.map((item) => item.id);
+    const usageCounts = mediaIds.length > 0
+      ? await db.select({ mediaId: galleryMedia.mediaId, count: count() })
+        .from(galleryMedia)
+        .where(inArray(galleryMedia.mediaId, mediaIds))
+        .groupBy(galleryMedia.mediaId)
+      : [];
+    const coverMedia = mediaIds.length > 0
+      ? await db.select({ coverMediaId: galleries.coverMediaId })
+        .from(galleries)
+        .where(inArray(galleries.coverMediaId, mediaIds))
+      : [];
+    const galleryCountByMediaId = new Map(
+      usageCounts.map((usage) => [usage.mediaId, Number(usage.count)])
+    );
+    const coveredMediaIds = new Set(
+      coverMedia.map((gallery) => gallery.coverMediaId).filter((id): id is string => id !== null)
+    );
+
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        galleryCount: (galleryCountByMediaId.get(item.id) || 0) + (coveredMediaIds.has(item.id) ? 1 : 0)
+      })),
       total,
       hasMore: offset + limit < total
     };

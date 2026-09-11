@@ -17,6 +17,7 @@ interface MediaOption {
   title?: string | null;
   type: 'image' | 'video' | 'gif';
   uploadedAt?: Date | string;
+  galleryCount?: number;
 }
 
 interface PaginationData {
@@ -107,6 +108,12 @@ function MediaCard({ media, isSelected, onToggle, onPreview, isAdding }: MediaCa
         >
           <HiCheck className="h-3.5 w-3.5" />
         </div>
+
+        {media.galleryCount === 0 && (
+          <span className="absolute -left-10 bottom-5 z-20 w-32 -rotate-45 bg-amber-400 py-1 text-center text-[9px] font-black uppercase tracking-[0.16em] text-amber-950 shadow-md">
+            Unused
+          </span>
+        )}
       </div>
 
       {/* 2. Action & Info Bar */}

@@ -28,6 +28,7 @@ export interface MediaSchema {
   locationName: string | null;
   coordinates: [number, number] | null;
   uploadedAt: string | Date;
+  galleryCount: number;
 }
 
 interface MediaCardProps {
@@ -139,6 +140,12 @@ const MediaCard = memo(function MediaCard({
             </span>
           )}
         </div>
+
+        {media.galleryCount === 0 && (
+          <span className="absolute -left-10 bottom-5 z-20 w-32 -rotate-45 bg-amber-400 py-1 text-center text-[9px] font-black uppercase tracking-[0.16em] text-amber-950 shadow-md">
+            Unused
+          </span>
+        )}
 
         {/* Delete Button - Appears on Hover */}
         <button 
